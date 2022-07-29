@@ -23,13 +23,16 @@
   (nary-exp
    (operator symbol?)
    (operands pair?))
+  (let*-exp
+   (var-list pair?)
+   (expr program?))
   (let-exp
-   (variable symbol?)
-   (variable-eval-exp program?)
-   (in-clause program?)))
+   (var-list pair?)
+   (expr program?)))
 (provide int-exp)
 (provide bool-exp)
 (provide let-exp)
+(provide let*-exp)
 (provide if-exp)
 (provide unary-op-exp)
 (provide binop-exp)
