@@ -40,14 +40,6 @@ To actually run the interpreter execute the script `/chapter-3/LET/let-interpret
 
 Example programs : 
 
-```scheme
-(let ((x 30))
-          (let ((x (- x 1))
-                (y (- x 2)))
-            (- x y)))
-; evaluates to 1 
-```
-
 ```scheme 
 (let ((x 30))
           (let* ((x (- x 1))
@@ -58,9 +50,21 @@ Example programs :
 
 ```scheme
 (let* ((x 30)
-               (y (list x x)))
+       (y (list x x)))
           (if (zero? x)
               y
               (* 2 x)))
 ; evaluates to 60
+```
+
+A more complicated example :
+
+```scheme
+(let* ((x 11)
+       (y (emptylist))
+       (z (+ x 17)))
+          (car (if (equals? x z)
+                   (cons z y)
+                   (cons (cons z y) y))))
+; (28)
 ```
