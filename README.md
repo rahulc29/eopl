@@ -19,6 +19,23 @@ The good thing about the second style is that it is possible to write a parser f
 
 LET allows integer arithmetic, if-else, binding of variables and untyped linked lists. 
 
+Here is the algebraic definition of the abstract syntax : 
+
+```haskell
+data Term = IntConst Integer | 
+            BoolConst Boolean | 
+            Variable Symbol |
+            NullaryOperator Symbol |
+            UnaryOperator Symbol Term |
+            BinaryOperator Symbol Symbol Term |
+            IfThenElse Term Term Term |
+            NaryOperator Symbol [Term] |
+            LetExpr [(Symbol, Term)] Term |
+            LetStarExpr [(Symbol, Term)] Term 
+type Environment = Symbol -> Term 
+type Interpreter = Term -> Environment -> Term 
+```
+
 To actually run the interpreter execute the script `/chapter-3/LET/let-interpreter.scm` with Racket and execute code with the `run` procedure. You can also see the output of the parser using the the `parse-tree` procedure. 
 
 Example programs : 
