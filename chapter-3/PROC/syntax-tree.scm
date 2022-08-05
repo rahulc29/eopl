@@ -24,7 +24,7 @@
    (operator symbol?)
    (operands pair?))
   (proc-exp
-   (parameter symbol?)
+   (parameter program?)
    (body program?))
   (call-exp
    (name program?)

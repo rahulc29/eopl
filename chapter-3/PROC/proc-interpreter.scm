@@ -5,7 +5,9 @@
 ; TODO : Refactor code so that pre-defined operators (=,+,*,<, etc.) become pre-defined procedures
 ; in an initial environment
 (define (init-env)
-  (empty-env))
+  (extend-env '% '() empty-env))
+; Three possible evaluation types :
+; data Type = Int | Bool | Proc { input :: Type, output :: Type }
 (define (value-of exp env)
   (define (extract-binary op)
     (cond
@@ -74,6 +76,15 @@
                                        env))))
     (extend-env-vars (map value-of-var-decl varlist)
                      env))
+  (define (value-of-proc param body env)
+    (define (extract-param-symbol param)
+      (cases program param
+        (var-exp (var) var)
+        (else (eopl:error 'value-of-proc "Not a variable"))))
+    (lambda (arg)
+      (value-of body (extend-env (extract-param-symbol param) arg env))))
+  (define (value-of-call rator rand)
+    ((value-of rator env) (value-of rand env)))
   (cases program exp
     (int-exp (val) val)
     (bool-exp (val) val)
@@ -88,9 +99,8 @@
             (if (value-of cond env)
                 (value-of then env)
                 (value-of else env)))
-    ; TODO : Implement evaluation of proc-exp and call-exp
-    (proc-exp (param body) '())
-    (call-exp (rator rand) '())
+    (proc-exp (param body) (value-of-proc param body env))
+    (call-exp (rator rand) (value-of-call rator rand))
     (nullary-op-exp (op)
                     (extract-nullary op))
     (let*-exp (varlist body)
