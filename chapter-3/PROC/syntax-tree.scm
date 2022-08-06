@@ -24,11 +24,11 @@
    (operator symbol?)
    (operands pair?))
   (proc-exp
-   (parameter program?)
+   (parameters pair?)
    (body program?))
   (call-exp
    (name program?)
-   (argument program?))
+   (arguments pair?))
   (let*-exp
    (var-list pair?)
    (expr program?))

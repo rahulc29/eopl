@@ -54,8 +54,8 @@
       (parse-let-form let*-exp tree))
     (define (proc? head)
       (eqv? head 'lambda))
-    (define (parse-proc-variable tree)
-      (parse-tree (car (list-ref tree 1))))
+    (define (parse-proc-variables tree)
+      (map parse-tree (list-ref tree 1)))
     (define (parse-proc-body tree)
       (parse-tree (list-ref tree 2)))
     ; any other pair is to be interpreted as a procedure call
@@ -64,8 +64,8 @@
       #t)
     (define (parse-call-rator tree)
       (parse-tree (list-ref tree 0)))
-    (define (parse-call-rand tree)
-      (parse-tree (list-ref tree 1)))
+    (define (parse-call-rands tree)
+      (map parse-tree (cdr tree)))
     (let ((head (car tree)))
       (cond
         ((binary-op? head) (binop-exp (extract-binary head) (parse-tree (list-ref tree 1))
@@ -78,8 +78,8 @@
         ((eqv? 'let head) (parse-let tree))
         ((eqv? 'let* head) (parse-let* tree))
         ((nullary-op? head) (nullary-op-exp (extract-nullary head)))
-        ((proc? head) (proc-exp (parse-proc-variable tree) (parse-proc-body tree)))
-        ((call? head) (call-exp (parse-call-rator tree) (parse-call-rand tree))))))
+        ((proc? head) (proc-exp (parse-proc-variables tree) (parse-proc-body tree)))
+        ((call? head) (call-exp (parse-call-rator tree) (parse-call-rands tree))))))
   (cond
     ((null? tree) (eopl:error 'parse-tree "Empty string"))
     ((pair? tree) (parse-pair tree))
