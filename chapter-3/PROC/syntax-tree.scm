@@ -1,5 +1,5 @@
 #lang eopl
-(define-datatype program program?
+(define-datatype program term?
   (int-exp
    (val integer?))
   (bool-exp
@@ -11,30 +11,31 @@
    (operator symbol?))
   (unary-op-exp
    (operator symbol?)
-   (argument program?))
+   (argument term?))
   (binop-exp
    (operator symbol?)
-   (left program?)
-   (right program?))
+   (left term?)
+   (right term?))
   (if-exp
-   (antecedent program?)
-   (consequent program?)
-   (else-clause program?))
+   (antecedent term?)
+   (consequent term?)
+   (else-clause term?))
   (nary-exp
    (operator symbol?)
    (operands pair?))
   (proc-exp
    (parameters pair?)
-   (body program?))
+   (body term?))
   (call-exp
-   (name program?)
+   (name term?)
    (arguments pair?))
   (let*-exp
    (var-list pair?)
-   (expr program?))
+   (expr term?))
   (let-exp
    (var-list pair?)
-   (expr program?)))
+   (expr term?)))
+(provide term?)
 (provide int-exp)
 (provide bool-exp)
 (provide let-exp)

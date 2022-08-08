@@ -55,7 +55,7 @@
     (define (proc? head)
       (eqv? head 'lambda))
     (define (parse-proc-variables tree)
-      (map parse-tree (list-ref tree 1)))
+      (list-ref tree 1))
     (define (parse-proc-body tree)
       (parse-tree (list-ref tree 2)))
     ; any other pair is to be interpreted as a procedure call

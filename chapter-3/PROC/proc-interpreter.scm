@@ -8,6 +8,15 @@
   (extend-env '% '() empty-env))
 ; Three possible evaluation types :
 ; data Type = Int | Bool | Proc { input :: Type, output :: Type }
+(define (environment? env)
+  (procedure? env))
+(define (identifier? var)
+  (symbol? var))
+(define-datatype proc-val proc-val?
+  (procedure
+   (env environment?)
+   (var identifier?)
+   (body term?)))
 (define (value-of exp env)
   (define (extract-binary op)
     (cond
@@ -77,24 +86,16 @@
     (extend-env-vars (map value-of-var-decl varlist)
                      env))
   (define (value-of-proc params body env)
-    (define (extract-param-symbol param)
-      (cases program param
-        (var-exp (var) var)
-        (else (eopl:error 'value-of-proc "Not a variable"))))
-    (define (extend-env-with-var-val-pairs env pairs index)
-      (define (extract-pair-var pair)
-        (extract-param-symbol (list-ref params index)))
-      (define (extract-pair-val pair)
-        pair)
-      (if (null? pairs)
+    (define (extend-env-with-arguments env params args)
+      (if (null? args)
           env
-          (extend-env-with-var-val-pairs (extend-env (extract-pair-var (car pairs))
-                                                     (extract-pair-val (car pairs))
-                                                     env)
-                                         (cdr pairs)
-                                         (+ index 1))))
+          (extend-env-with-arguments (extend-env (car params)
+                                                 (car args)
+                                                 env)
+                                     (cdr params)
+                                     (cdr args))))
     (lambda (args)
-      (value-of body (extend-env-with-var-val-pairs env args 0))))
+      (value-of body (extend-env-with-arguments env params args))))
   (define (value-of-call rator rands env)
     ((value-of rator env) (map (lambda (arg) (value-of arg env)) rands)))
   (cases program exp
