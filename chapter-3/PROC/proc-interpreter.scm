@@ -7,15 +7,16 @@
 (define (init-env)
   (extend-env '% '() empty-env))
 ; Three possible evaluation types :
-; data Type = Int | Bool | Proc { input :: Type, output :: Type }
+; data ExprType = Int | Bool | Proc { input :: [ExprType], output :: ExprType }
+; type Environment = Symbol -> ExprType
 (define (environment? env)
   (procedure? env))
-(define (identifier? var)
-  (symbol? var))
+; type Param = Symbol
+; data ProcVal = Environment * [Param] * Term
 (define-datatype proc-val proc-val?
   (procedure
    (env environment?)
-   (var identifier?)
+   (params pair?)
    (body term?)))
 (define (value-of exp env)
   (define (extract-binary op)
@@ -85,19 +86,23 @@
                                        env))))
     (extend-env-vars (map value-of-var-decl varlist)
                      env))
+  (define (extend-env-with-arguments env params args)
+    (if (null? args)
+        env
+        (extend-env-with-arguments (extend-env (car params)
+                                               (car args)
+                                               env)
+                                   (cdr params)
+                                   (cdr args))))
   (define (value-of-proc params body env)
-    (define (extend-env-with-arguments env params args)
-      (if (null? args)
-          env
-          (extend-env-with-arguments (extend-env (car params)
-                                                 (car args)
-                                                 env)
-                                     (cdr params)
-                                     (cdr args))))
-    (lambda (args)
-      (value-of body (extend-env-with-arguments env params args))))
+    (procedure env params body))
   (define (value-of-call rator rands env)
-    ((value-of rator env) (map (lambda (arg) (value-of arg env)) rands)))
+    (define (apply-procedure proc args)
+      (cases proc-val proc
+        (procedure (env params body)
+                   (value-of body (extend-env-with-arguments env params args)))))
+    (apply-procedure (value-of rator env) (map (lambda (arg) (value-of arg env))
+                                               rands)))
   (cases program exp
     (int-exp (val) val)
     (bool-exp (val) val)
