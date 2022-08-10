@@ -7,15 +7,6 @@
                           (eq? val #f)))))
   (var-exp
    (var symbol?))
-  (nullary-op-exp
-   (operator symbol?))
-  (unary-op-exp
-   (operator symbol?)
-   (argument term?))
-  (binop-exp
-   (operator symbol?)
-   (left term?)
-   (right term?))
   (if-exp
    (antecedent term?)
    (consequent term?)
@@ -41,11 +32,8 @@
 (provide let-exp)
 (provide let*-exp)
 (provide if-exp)
-(provide unary-op-exp)
+(provide nary-exp)
 (provide proc-exp)
 (provide call-exp)
-(provide binop-exp)
-(provide nary-exp)
-(provide nullary-op-exp)
 (provide var-exp)
 (provide program)

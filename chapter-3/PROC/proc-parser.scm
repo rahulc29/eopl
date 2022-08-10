@@ -25,10 +25,8 @@
        (eqv? head 'null?)))
     (define (extract-unary head)
       head)
-    (define (nary-op? head)
-      (or
-       (eqv? head 'list)
-       (eqv? head 'cond)))
+    (define (cond-form? head)
+      (eqv? head 'cond))
     (define (extract-nary head)
       head)
     (define (extract-nary-mapper head)
@@ -36,7 +34,6 @@
         (list (parse-tree (list-ref tree 0))
               (parse-tree (list-ref tree 1))))
       (cond
-        ((eqv? head 'list) parse-tree)
         ((eqv? head 'cond) parse-cond)))
     (define (parse-let-form constructor tree)
       (define (extract-var-list tree)
@@ -68,16 +65,12 @@
       (map parse-tree (cdr tree)))
     (let ((head (car tree)))
       (cond
-        ((binary-op? head) (binop-exp (extract-binary head) (parse-tree (list-ref tree 1))
-                                      (parse-tree (list-ref tree 2))))
-        ((unary-op? head) (unary-op-exp (extract-unary head) (parse-tree (list-ref tree 1))))
-        ((nary-op? head) (nary-exp (extract-nary head) (map (extract-nary-mapper head) (cdr tree))))
+        ((cond-form? head) (nary-exp (extract-nary head) (map (extract-nary-mapper head) (cdr tree))))
         ((eqv? 'if head) (if-exp (parse-tree (list-ref tree 1))
                                  (parse-tree (list-ref tree 2))
                                  (parse-tree (list-ref tree 3))))
         ((eqv? 'let head) (parse-let tree))
         ((eqv? 'let* head) (parse-let* tree))
-        ((nullary-op? head) (nullary-op-exp (extract-nullary head)))
         ((proc? head) (proc-exp (parse-proc-variables tree) (parse-proc-body tree)))
         ((call? head) (call-exp (parse-call-rator tree) (parse-call-rands tree))))))
   (cond
