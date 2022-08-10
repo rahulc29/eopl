@@ -28,7 +28,7 @@
    (body term?))
   (call-exp
    (name term?)
-   (arguments pair?))
+   (arguments (lambda (x) (or (pair? x) (null? x)))))
   (let*-exp
    (var-list pair?)
    (expr term?))

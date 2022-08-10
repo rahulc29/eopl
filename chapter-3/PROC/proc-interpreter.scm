@@ -4,20 +4,95 @@
 (require "syntax-tree.scm")
 ; TODO : Refactor code so that pre-defined operators (=,+,*,<, etc.) become pre-defined procedures
 ; in an initial environment
+(define (extend-env-with-key-value-lists env keys values)
+  (if (null? values)
+      env
+      (extend-env-with-key-value-lists (extend-env (car keys)
+                                                   (car values)
+                                                   env)
+                                       (cdr keys)
+                                       (cdr values))))
+(define (extend-env-with-key-value-pairs env pairs)
+  (if (null? pairs)
+      env
+      (extend-env-with-key-value-pairs (extend-env (car (car pairs))
+                                                   (cdr (car pairs))
+                                                   env)
+                                       (cdr pairs))))
 (define (init-env)
-  (extend-env '% '() empty-env))
-; Three possible evaluation types :
-; data ExprType = Int | Bool | Proc { input :: [ExprType], output :: ExprType }
+  (define (make-meta proc)
+    (meta-procedure
+     (lambda (env args)
+       (proc args))))
+  (define (make-foldr op id)
+    (define (internal-foldr op id args)
+      (if (null? args)
+          id
+          (op (car args)
+              (internal-foldr op id (cdr args)))))
+    (meta-procedure
+     (lambda (env args)
+       (internal-foldr op id args))))
+  (define (make-sort-checker op)
+    (define (internal-sort-checker op curr args acc)
+      (if (null? args)
+          acc
+          (internal-sort-checker op
+                                 (car args)
+                                 (cdr args)
+                                 (and acc (op curr (car args))))))
+    (meta-procedure
+     (lambda (env args)
+       (if (null? args)
+           #t
+           (internal-sort-checker op
+                                  (car args)
+                                  (cdr args)
+                                  #t)))))
+  (define (make-binary op)
+    (meta-procedure
+     (lambda (env args)
+       (if (= 2 (length args))
+           (op (list-ref args 0)
+               (list-ref args 1))
+           (eopl:error 'primitive-procedure "Binary operator should be given 2 operands")))))
+  (define (make-unary op)
+    (meta-procedure
+     (lambda (env args)
+       (if (= 1 (length args))
+           (op (list-ref args 0))
+           (eopl:error 'primitive-procedure "Unary operator should be given 1 operand")))))
+              
+  (extend-env-with-key-value-pairs (empty-env)
+                                   (list (cons '+! (make-foldr + 0))
+                                         (cons '*! (make-foldr * 1))
+                                         (cons '-! (make-foldr - 0))
+                                         (cons 'cons! (make-binary cons))
+                                         (cons 'car! (make-unary car))
+                                         (cons 'cdr! (make-unary cdr))
+                                         (cons 'list! (make-meta (lambda (x) x)))
+                                         (cons '< (make-sort-checker <))
+                                         (cons '> (make-sort-checker >))
+                                         (cons '>= (make-sort-checker >=))
+                                         (cons '<= (make-sort-checker <=)))))
+; Four possible evaluation types :
+; data ExprType = Int |
+;                 Bool |
+;                 Proc [ExprType] ExprType |
+;                 Pair ExprType ExprType 
 ; type Environment = Symbol -> ExprType
+; type Interpreter = String -> Environment -> ExprType
 (define (environment? env)
   (procedure? env))
 ; type Param = Symbol
 ; data ProcVal = Environment * [Param] * Term
 (define-datatype proc-val proc-val?
-  (procedure
+  (object-procedure ; procedure in the object language
    (env environment?)
    (params pair?)
-   (body term?)))
+   (body term?))
+  (meta-procedure ; procedure in the meta language
+   (internal procedure?)))
 (define (value-of exp env)
   (define (extract-binary op)
     (cond
@@ -86,21 +161,14 @@
                                        env))))
     (extend-env-vars (map value-of-var-decl varlist)
                      env))
-  (define (extend-env-with-arguments env params args)
-    (if (null? args)
-        env
-        (extend-env-with-arguments (extend-env (car params)
-                                               (car args)
-                                               env)
-                                   (cdr params)
-                                   (cdr args))))
   (define (value-of-proc params body env)
-    (procedure env params body))
+    (object-procedure env params body))
   (define (value-of-call rator rands env)
     (define (apply-procedure proc args)
       (cases proc-val proc
-        (procedure (env params body)
-                   (value-of body (extend-env-with-arguments env params args)))))
+        (object-procedure (env params body)
+                          (value-of body (extend-env-with-key-value-lists env params args)))
+        (meta-procedure (internal-proc) (internal-proc env args))))
     (apply-procedure (value-of rator env) (map (lambda (arg) (value-of arg env))
                                                rands)))
   (cases program exp
