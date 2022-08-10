@@ -90,7 +90,7 @@
   (extend-env-with-key-value-pairs (empty-env)
                                    primitives))
 ; Four possible evaluation types :
-; data ExprType = Int |
+; data ExprType = Integer |
 ;                 Bool |
 ;                 Proc [ExprType] ExprType |
 ;                 Pair ExprType ExprType 
@@ -99,6 +99,14 @@
 (define (environment? env)
   (procedure? env))
 ; type Param = Symbol
+; data IntegerVal = Integer
+(define-datatype integer-val int-val?
+  (int-val
+   (val integer?)))
+; data BooleanVal = Boolean
+(define-datatype boolean-val bool-val?
+  (bool-val
+   (val (lambda (x) (or (eq? x #t) (eq? x #f))))))
 ; data ProcVal = Environment * [Param] * Term
 (define-datatype proc-val proc-val?
   (object-procedure ; procedure in the object language
