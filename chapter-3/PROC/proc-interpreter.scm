@@ -2,8 +2,9 @@
 (require "procedural-environment.scm")
 (require "proc-parser.scm")
 (require "syntax-tree.scm")
-; TODO : Refactor code so that pre-defined operators (=,+,*,<, etc.) become pre-defined procedures
-; in an initial environment
+; Utility procedures to manipulate environments
+; These can be rewritten as left folds and that would be more elegant
+; but I'm lazy :P
 (define (extend-env-with-key-value-lists env keys values)
   (if (null? values)
       env
@@ -19,77 +20,11 @@
                                                    (cdr (car pairs))
                                                    env)
                                        (cdr pairs))))
-(define (init-env)
-  (define (make-meta proc)
-    (meta-procedure
-     (lambda (env args)
-       (proc args))))
-  (define (make-foldr op id)
-    (define (internal-foldr op id args)
-      (if (null? args)
-          id
-          (op (car args)
-              (internal-foldr op id (cdr args)))))
-    (meta-procedure
-     (lambda (env args)
-       (internal-foldr op id args))))
-  (define (make-foldl op id)
-    (define (internal-foldl op acc args)
-      (if (null? args)
-          acc
-          (internal-foldl op (op acc (car args)) (cdr args))))
-    (meta-procedure
-     (lambda (env args)
-       (internal-foldl op id args))))
-  (define (make-sort-checker op)
-    (define (internal-sort-checker op curr args acc)
-      (if (null? args)
-          acc
-          (internal-sort-checker op
-                                 (car args)
-                                 (cdr args)
-                                 (and acc (op curr (car args))))))
-    (meta-procedure
-     (lambda (env args)
-       (if (null? args)
-           #t
-           (internal-sort-checker op
-                                  (car args)
-                                  (cdr args)
-                                  #t)))))
-  (define (make-binary op)
-    (meta-procedure
-     (lambda (env args)
-       (if (= 2 (length args))
-           (op (list-ref args 0)
-               (list-ref args 1))
-           (eopl:error 'primitive-procedure "Binary operator should be given 2 operands")))))
-  (define (make-unary op)
-    (meta-procedure
-     (lambda (env args)
-       (if (= 1 (length args))
-           (op (list-ref args 0))
-           (eopl:error 'primitive-procedure "Unary operator should be given 1 operand")))))
-
-  (define primitives
-    (list (cons '+ (make-foldr + 0))
-          (cons '* (make-foldr * 1))
-          (cons '- (make-foldr - 0))
-          (cons 'cons (make-binary cons))
-          (cons 'car (make-unary car))
-          (cons 'cdr (make-unary cdr))
-          (cons 'negate (make-unary (lambda (x) (- x))))
-          (cons 'zero? (make-unary zero?))
-          (cons 'null? (make-unary null?))
-          (cons 'list (make-meta (lambda (x) x)))
-          (cons 'emptylist (make-meta (lambda (x) '())))
-          (cons '< (make-sort-checker <))
-          (cons '> (make-sort-checker >))
-          (cons '>= (make-sort-checker >=))
-          (cons '<= (make-sort-checker <=))))
-  (extend-env-with-key-value-pairs (empty-env)
-                                   primitives))
-; Four possible evaluation types :
+; ----------- DATA STRUCTURES ----------
+; These data structures are written a Haskell syntax
+; since Haskell has arguably the most elegant syntax
+; to define types algebraically.
+; We have four possible expressible types :
 ; data ExprType = Integer |
 ;                 Bool |
 ;                 Proc [ExprType] ExprType |
@@ -115,7 +50,154 @@
    (body term?))
   (meta-procedure ; procedure in the meta language
    (internal procedure?)))
+(define-datatype exp-val exp-val?
+  (proc (val proc-val?))
+  (int (val int-val?))
+  (bool (val bool-val?)))
+; -------- WRAPPERS and UNWRAPPERS -----------
+; Procedures that convert from the object language's type system
+; to the meta langauge's type system (Scheme) and vice versa
+(define (int-val-wrapper int)
+  (int-val int))
+(define (int-val-unwrapper exp)
+  (cases integer-val exp
+    (int-val (int) int)))
+(define (bool-val-wrapper exp)
+  (bool-val exp))
+(define (bool-val-unwrapper exp)
+  (cases boolean-val exp
+    (bool-val (val) val)))
+; --------- INITIAL ENVIRONMENT -------------
+; Our interpreter starts in an initial environment in which
+; bindings are given for primitive procedures
+; This procedure returns the initial environment and sets it up
+(define (init-env)
+  ; -------- CONVERTERS --------
+  ; These procedures convert lifted procedures of the meta language
+  ; to procedures in the object language that can be consumed
+  ; directly by the interpreter
+  (define (make-meta proc)
+    (meta-procedure
+     (lambda (env args)
+       (proc args))))
+  (define (make-foldr op id)
+    (define (internal-foldr op id args)
+      (if (null? args)
+          id
+          (op (car args)
+              (internal-foldr op id (cdr args)))))
+    (meta-procedure
+     (lambda (env args)
+       (internal-foldr op id args))))
+  (define (make-foldl op id)
+    (define (internal-foldl op acc args)
+      (if (null? args)
+          acc
+          (internal-foldl op (op acc (car args)) (cdr args))))
+    (meta-procedure
+     (lambda (env args)
+       (internal-foldl op id args))))
+  (define (make-sort-checker op)
+    (define (internal-sort-checker op curr args acc conn)
+      (if (null? args)
+          acc
+          (internal-sort-checker op
+                                 (car args)
+                                 (cdr args)
+                                 (conn acc (op curr (car args)))
+                                 conn)))
+    (meta-procedure
+     (lambda (env args)
+       (if (null? args)
+           (bool-val #t)
+           (internal-sort-checker op
+                                  (car args)
+                                  (cdr args)
+                                  (bool-val #t)
+                                  (lift-binary (lambda (x y) (and x y))
+                                               bool-val-unwrapper
+                                               bool-val-unwrapper
+                                               bool-val-wrapper))))))
+  (define (make-binary op)
+    (meta-procedure
+     (lambda (env args)
+       (if (= 2 (length args))
+           (op (list-ref args 0)
+               (list-ref args 1))
+           (eopl:error 'primitive-procedure "Binary operator should be given 2 operands")))))
+  (define (make-unary op)
+    (meta-procedure
+     (lambda (env args)
+       (if (= 1 (length args))
+           (op (list-ref args 0))
+           (eopl:error 'primitive-procedure "Unary operator should be given 1 operand")))))
+  ; --------------- LIFTERS ---------------
+  ; Since we use a dynamically checked type system (sort of, it is a little crude
+  ; to call what we have a "type system" but there's no other word to describe it)
+  ; we need to take primitive Scheme procedures and turn them into procedures
+  ; that can be invoked from the object language
+  ; To do this, we simply apply a wrapper and an unwrapper.
+  ; f' = wrap . f . unwrap
+  ; lift f wrap unwrap = \x -> wrap $ f $ unwrap x
+  ; Other arities work similarly by taking more unwrappers
+  (define (lift-unary op unwrapper wrapper)
+    (lambda (x)
+      (wrapper
+       (op (unwrapper x)))))
+  (define (lift-binary op unwrapper-1 unwrapper-2 wrapper)
+    (lambda (x y)
+      (wrapper (op (unwrapper-1 x)
+                   (unwrapper-2 y)))))
+  (define (lift-arithmetic op)
+    (lift-binary op int-val-unwrapper int-val-unwrapper int-val-wrapper))
+  (define (lift-comparator comp)
+    (lift-binary comp int-val-unwrapper int-val-unwrapper bool-val-wrapper))
+  ; ------ PRIMITIVES -------------
+  ; This list defines all the primitives in the initial environment
+  ; type Primitive = Symbol * ExprType
+  ; Primitives are defined as the Cartesian Product of Symbol
+  ; and an expressed value. The expressed value is then bound
+  ; to the symbol in the initial environment
+  (define primitives
+    (list (cons '+ (make-foldr (lift-arithmetic +) (int-val 0)))
+          (cons '* (make-foldr (lift-arithmetic *) (int-val 1)))
+          (cons '- (make-foldr (lift-arithmetic -) (int-val 0)))
+          (cons 'cons (make-binary cons))
+          (cons '= (make-binary (lift-comparator =)))
+          (cons 'car (make-unary car))
+          (cons 'cdr (make-unary cdr))
+          (cons 'negate (make-unary (lift-unary (lambda (x) (- x)) int-val-unwrapper int-val-wrapper)))
+          (cons 'zero? (make-unary (lift-unary zero? int-val-unwrapper bool-val-wrapper)))
+          (cons 'null? (make-unary null?))
+          (cons 'list (make-meta (lambda (x) x)))
+          (cons 'emptylist (make-meta (lambda (x) '())))
+          (cons '< (make-sort-checker (lift-comparator <)))
+          (cons '> (make-sort-checker (lift-comparator >)))
+          (cons '>= (make-sort-checker (lift-comparator <=)))
+          (cons '<= (make-sort-checker (lift-comparator >=)))))
+  ; The initial environment is made by extending the empty environment
+  ; with the primitives.
+  (extend-env-with-key-value-pairs (empty-env)
+                                   primitives))
+; ------------ EVALUATOR --------------
+; The heart of the interpreter
+; The value-of an expression in an environment
+; is defined by this procedure recursively.
+; If the expression is well-formed then the evaluation
+; is guranteed to terminate in the sense that
+; it will reach the base case of evaluation.
+; The evaluation of these base cases may itself be recursive
+; in the object language. If the recursion in the object
+; language does not terminate then a non-terminal recursion
+; is induced in the meta language.
+; Mathematically, this is NOT a total function.
+; Indeed, the interpretation of any Turing complete
+; language must involve non-terminating computations
+; and therefore partiality.
 (define (value-of exp env)
+  ; --------- UTILITIES ------------
+  ; These procedures give back utility lambdas to be consumed by
+  ; the interpreter
   (define (extract-nary op)
     (define (cond-evaluator conds env)
       (define (extract-predicate cond-cell)
@@ -168,20 +250,25 @@
         (meta-procedure (internal-proc) (internal-proc env args))))
     (apply-procedure (value-of rator env) (map (lambda (arg) (value-of arg env))
                                                rands)))
+  (define (true? bool)
+    (eq? #t (bool-val-unwrapper bool)))
+  ; The consumption of the abstract syntax tree begins here :D
+  ; This is where magic happens ;)
   (cases program exp
-    (int-exp (val) val)
-    (bool-exp (val) val)
+    (int-exp (val) (int-val val))
+    (bool-exp (val) (bool-val val))
     (var-exp (var) (apply-env env var))
     (nary-exp (op args) ((extract-nary op) args env))
-    (if-exp (cond then else)
-            (if (value-of cond env)
-                (value-of then env)
-                (value-of else env)))
+    (if-exp (condition then-clause else-clause)
+            (if (true? (value-of condition env))
+                (value-of then-clause env)
+                (value-of else-clause env)))
     (proc-exp (param body) (value-of-proc param body env))
     (call-exp (rator rand) (value-of-call rator rand env))
     (let*-exp (varlist body)
               (value-of body (extend-env-varlist-let* varlist env)))
     (let-exp (varlist body)
              (value-of body (extend-env-varlist-let varlist env)))))
+; To run a program is to evaluate it in the initial environment
 (define (run program)
   (value-of (parse-tree program) (init-env)))
