@@ -82,6 +82,14 @@
       (empty-sexp)
       (cons-sexp (car exp)
                  (cdr exp))))
+(define (sexp-car exp)
+  (cases sexp-val exp
+    (empty-sexp () (eopl:error 'car "Cannot car empty list"))
+    (cons-sexp (head tail) head)))
+(define (sexp-cdr exp)
+  (cases sexp-val exp
+    (empty-sexp () (eopl:error 'cdr "Cannot cdr empty list"))
+    (cons-sexp (head tail) tail)))
 ; --------- INITIAL ENVIRONMENT -------------
 ; Our interpreter starts in an initial environment in which
 ; bindings are given for primitive procedures
@@ -179,8 +187,8 @@
           (cons '- (make-foldr (lift-arithmetic -) (int-val 0)))
           (cons 'cons (make-binary cons-sexp))
           (cons '= (make-binary (lift-comparator =)))
-          (cons 'car (make-unary car))
-          (cons 'cdr (make-unary cdr))
+          (cons 'car (make-unary sexp-car))
+          (cons 'cdr (make-unary sexp-cdr))
           (cons 'negate (make-unary (lift-unary (lambda (x) (- x)) int-val-unwrapper int-val-wrapper)))
           (cons 'zero? (make-unary (lift-unary zero? int-val-unwrapper bool-val-wrapper)))
           (cons 'null? (make-unary (lift-unary null? sexp-val-unwrapper bool-val-wrapper)))
