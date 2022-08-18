@@ -68,3 +68,30 @@ A more complicated example :
                    (cons (cons z y) y))))
 ; (28)
 ```
+
+# PROC 
+
+PROC allows us to also have procedure and procedure-calls. 
+Essentially all forms remain the same but procedures also become first-class values. 
+
+Currying : 
+```scheme
+(let (curry (lambda (x) 
+             (lambda (y) 
+              (+ x y))))
+ ((curry 3) 4))
+; evaluates to 7
+```
+
+Recursion : 
+```scheme
+(let (fact (lambda (n self) 
+            (if (zero? n)
+             1
+             (* n (self (- n 1) self)))))
+ (fact 5 fact))
+; 120 
+```
+
+Observe that recursion without explicitly passing the function itself as a parameter would require the Y combinator and can be done. 
+The existence of the Y-combinator also shows that PROC is Turing complete. 
