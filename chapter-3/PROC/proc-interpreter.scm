@@ -28,9 +28,18 @@
 ; data ExprType = Integer |
 ;                 Bool |
 ;                 Proc [ExprType] ExprType |
-;                 Pair ExprType ExprType 
+;                 Pair ExprType ExprType
 ; type Environment = Symbol -> ExprType
 ; type Interpreter = String -> Environment -> ExprType
+(define (expr-val? x)
+  (or (sexp-val? x)
+      (int-val? x)
+      (bool-val? x)
+      (proc-val? x)))
+(define-datatype sexp-val sexp-val?
+  (empty-sexp)
+  (cons-sexp (head expr-val?)
+             (tail expr-val?)))
 (define (environment? env)
   (procedure? env))
 ; type Param = Symbol
@@ -50,10 +59,6 @@
    (body term?))
   (meta-procedure ; procedure in the meta language
    (internal procedure?)))
-(define-datatype exp-val exp-val?
-  (proc (val proc-val?))
-  (int (val int-val?))
-  (bool (val bool-val?)))
 ; -------- WRAPPERS and UNWRAPPERS -----------
 ; Procedures that convert from the object language's type system
 ; to the meta langauge's type system (Scheme) and vice versa
@@ -67,6 +72,16 @@
 (define (bool-val-unwrapper exp)
   (cases boolean-val exp
     (bool-val (val) val)))
+(define (sexp-val-unwrapper exp)
+  (cases sexp-val exp
+    (empty-sexp () '())
+    (cons-sexp (head tail)
+               (cons head tail))))
+(define (sexp-val-wrapper exp)
+  (if (null? exp)
+      (empty-sexp)
+      (cons-sexp (car exp)
+                 (cdr exp))))
 ; --------- INITIAL ENVIRONMENT -------------
 ; Our interpreter starts in an initial environment in which
 ; bindings are given for primitive procedures
@@ -162,15 +177,15 @@
     (list (cons '+ (make-foldr (lift-arithmetic +) (int-val 0)))
           (cons '* (make-foldr (lift-arithmetic *) (int-val 1)))
           (cons '- (make-foldr (lift-arithmetic -) (int-val 0)))
-          (cons 'cons (make-binary cons))
+          (cons 'cons (make-binary cons-sexp))
           (cons '= (make-binary (lift-comparator =)))
           (cons 'car (make-unary car))
           (cons 'cdr (make-unary cdr))
           (cons 'negate (make-unary (lift-unary (lambda (x) (- x)) int-val-unwrapper int-val-wrapper)))
           (cons 'zero? (make-unary (lift-unary zero? int-val-unwrapper bool-val-wrapper)))
-          (cons 'null? (make-unary null?))
-          (cons 'list (make-meta (lambda (x) x)))
-          (cons 'emptylist (make-meta (lambda (x) '())))
+          (cons 'null? (make-unary (lift-unary null? sexp-val-unwrapper bool-val-wrapper)))
+          (cons 'list (make-foldr cons-sexp (empty-sexp)))
+          (cons 'emptylist (make-meta (lambda (x) (empty-sexp))))
           (cons '< (make-sort-checker (lift-comparator <)))
           (cons '> (make-sort-checker (lift-comparator >)))
           (cons '>= (make-sort-checker (lift-comparator <=)))
