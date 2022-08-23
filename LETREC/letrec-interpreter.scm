@@ -1,6 +1,6 @@
 #lang eopl
 (require "procedural-environment.scm")
-(require "proc-parser.scm")
+(require "letrec-parser.scm")
 (require "syntax-tree.scm")
 ; Utility procedures to manipulate environments
 ; These can be rewritten as left folds and that would be more elegant
@@ -20,6 +20,11 @@
                                                    (cdr (car pairs))
                                                    env)
                                        (cdr pairs))))
+(define (apply-procedure proc args env)
+  (cases proc-val proc
+    (object-procedure (env params body)
+                      (value-of body (extend-env-with-key-value-lists env params args)))
+    (meta-procedure (internal-proc) (internal-proc env args))))
 ; ----------- DATA STRUCTURES ----------
 ; These data structures are written a Haskell syntax
 ; since Haskell has arguably the most elegant syntax
@@ -175,6 +180,16 @@
     (lift-binary op int-val-unwrapper int-val-unwrapper int-val-wrapper))
   (define (lift-comparator comp)
     (lift-binary comp int-val-unwrapper int-val-unwrapper bool-val-wrapper))
+  ; ------------ FIXPOINT COMBINATOR -----------------
+  (define (fixpoint-combinator proc)
+    (cases proc-val proc
+      (meta-procedure (internal) (eopl:error 'fix "Cannot fix metalanguage procedures"))
+      (object-procedure (env params body)
+                        (object-procedure (extend-env 'self proc env)
+                                          (cdr params)
+                                          (call-exp (var-exp 'self)
+                                                    (cons (var-exp 'self)
+                                                          (map var-exp (cdr params))))))))
   ; ------ PRIMITIVES -------------
   ; This list defines all the primitives in the initial environment
   ; type Primitive = Symbol * ExprType
@@ -185,6 +200,7 @@
     (list (cons '+ (make-foldr (lift-arithmetic +) (int-val 0)))
           (cons '* (make-foldr (lift-arithmetic *) (int-val 1)))
           (cons '- (make-foldr (lift-arithmetic -) (int-val 0)))
+          (cons 'fix (make-unary fixpoint-combinator))
           (cons 'cons (make-binary cons-sexp))
           (cons '= (make-binary (lift-comparator =)))
           (cons 'car (make-unary sexp-car))
@@ -266,13 +282,20 @@
   (define (value-of-proc params body env)
     (object-procedure env params body))
   (define (value-of-call rator rands env)
-    (define (apply-procedure proc args)
-      (cases proc-val proc
-        (object-procedure (env params body)
-                          (value-of body (extend-env-with-key-value-lists env params args)))
-        (meta-procedure (internal-proc) (internal-proc env args))))
-    (apply-procedure (value-of rator env) (map (lambda (arg) (value-of arg env))
-                                               rands)))
+    (apply-procedure (value-of rator env)
+                     (map (lambda (arg) (value-of arg env))
+                          rands)
+                     env))
+  (define (value-of-letrec name
+                           params
+                           recdef
+                           body
+                           env)
+    (define (extend-env-with-recdef name params recdef env) '())
+    (value-of body (extend-env-with-recdef name
+                                           params
+                                           recdef
+                                           env)))
   (define (true? bool)
     (eq? #t (bool-val-unwrapper bool)))
   ; The consumption of the abstract syntax tree begins here :D
@@ -288,6 +311,8 @@
                 (value-of else-clause env)))
     (proc-exp (param body) (value-of-proc param body env))
     (call-exp (rator rand) (value-of-call rator rand env))
+    (letrec-exp (name params recdef body)
+                (value-of-letrec name params recdef body env))
     (let*-exp (varlist body)
               (value-of body (extend-env-varlist-let* varlist env)))
     (let-exp (varlist body)

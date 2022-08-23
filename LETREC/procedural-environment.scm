@@ -18,7 +18,7 @@
       ((eqv? signal 'has-binding?)
        (lambda (search-var)
          (eqv? search-var saved-var)))
-      (else (eopl:error "Unknown method")))))  
+      (else (eopl:error "Unknown method")))))
 (define (apply-env env search-var)
   ((env 'apply) search-var))
 (define (empty-env? env)

@@ -23,7 +23,8 @@
   (letrec-exp
    (name symbol?)
    (args  (lambda (x) (or (pair? x) (null? x))))
-   (body term?))
+   (body term?)
+   (in term?))
   (let*-exp
    (var-list pair?)
    (expr term?))
