@@ -1,4 +1,12 @@
-> In order to understand unbounded recursion, one must understand unbounded recursion. 
+---
+title: "Design Doc - Recursion"
+toc: true
+header-includes: \usepackage{amsmath}
+---
+
+# A cute sounding but essentially meaningless quote
+
+> _In order to understand unbounded recursion, one must understand unbounded recursion._ 
 
 # Recursion is nameless 
 
@@ -50,9 +58,9 @@ $$
   W_{B,C} = \phi(W_{B,C})
 $$
 
-where $\phi$ takes any form `f` to the `if B then C ; f else skip`. 
+where $\phi$ takes any form `f` to the `if B then { C ; f } else skip` form. 
 
-More formally, `while` is completely defined by the above equation and we say that $W_{B,C}$ is the _fixpoint_ of $\phi$. Such equations are called _fixpoint equations_. 
+More formally, `while` is completely defined by the above equation and we say that $W_{B,C}$ is the _fixpoint_ of $\phi_{B,C}$. Such equations are called _fixpoint equations_. 
 
 We have an entire field of mathematics dedicated to the study of fixpoints - domain theory. It should be no surprise that since recursion is _defined_ mathematically using
 fixpoint equations; domain theory is a favourite subject of computer scientists. 
@@ -226,13 +234,16 @@ Y combinator? I'll leave all this for now.
 
 Let us take an example : let's compute the fixpoint of the identity function. The term $\lambda y.y$ will represent the identity function. 
 
-$$
-  Y id \\ 
+
+\begin{equation}
+\begin{aligned}
+  Y id \\
   = Y \lambda y. y  \\
   = \lambda f. ((\lambda x. f (x x)) (\lambda x. f (x x))) \lambda y.y \\
   = ((\lambda x. (\lambda y. y (x x))) (\lambda x. (\lambda y. y (x x)))) \\
   = ((\lambda x. (x x)) (\lambda x. (x x))) \\
-$$
+\end{aligned}
+\end{equation}
 
 Observe that the last term is the classic example of a non-terminating infinite loop. 
 
@@ -250,13 +261,15 @@ I have taken the syntax of the fixpoint equation and the implementation in the m
 
 ```scheme
 (cases proc-val proc
-      (meta-procedure (internal) (eopl:error 'fix "Cannot fix metalanguage procedures"))
-      (object-procedure (env params body)
-                        (object-procedure (extend-env 'self proc env)
-                                          (cdr params)
-                                          (call-exp (var-exp 'self)
-                                                    (cons (var-exp 'self)
-                                                          (map var-exp (cdr params))))))))
+      (meta-procedure (internal) 
+       (eopl:error 'fix "Cannot fix metalanguage procedures"))
+      (object-procedure 
+       (env params body)                 
+       (object-procedure (extend-env 'self proc env)
+                         (cdr params)
+                         (call-exp (var-exp 'self)
+                                   (cons (var-exp 'self)
+                                   (map var-exp (cdr params))))))))
 ```
 
 Yes, I just make a new function that implicitly uses the old environment trick. We simply add a new binding `'self` to our environment and call the original function 
@@ -270,10 +283,10 @@ well enough for now and I can add a new `defrec` form as syntactic sugar that re
 I have also been very informal and non-rigourous with the mathematics. I will be fixing both of these very soon. 
 
 One might argue that putting in so much mathematics and extra garbage in this design doc is unnecessary - but this fundamentally misunderstands the philosophy. 
-Since the design is motivated entirely by personal laziness, the design doc itself is essentially a gentrified and academic sounding shitpost. 
+Since the design is motivated entirely by personal laziness, the design doc itself is essentially a glorified shitpost. 
 
 # References
 
-- For understanding about the untyped lambda calculus, one may see "Type Theory and Formal Proof" or "Lectures on the Curry-Howard Isomorphism"
-- For understanding about general recursion and algebraic datatypes see Pierce's "Types and Programming Languages" 
+- For understanding about the untyped lambda calculus, one may see _Type Theory and Formal Proof_ or _Lectures on the Curry-Howard Isomorphism_
+- For understanding about general recursion and algebraic datatypes see Pierce's _Types and Programming Languages_
 - For understanding the mathematics behind recursion see any book on domain theory or programming language semantics. 
