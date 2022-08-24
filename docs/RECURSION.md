@@ -197,3 +197,83 @@ $$
   F = \lim_{n \to \infty} F_{n} = \bigcup_{i = 1}^{\infty} F_{i}
 $$
 
+Wow, all this just to _define_ mathematically recursion without actually using recursion. This might look unnecessarily complex (it is) but it's still 
+important since this gives a totally new perspective on what recursion is rather than just "stack go brr". 
+
+# Finding fixpoints - the computer science
+
+During the last section we dived into what some might call "heavy mathematics". It might be difficult to relate it back to CS. 
+
+Our first question is - does the fixpoint _always_ exist? Does any arbitrary recursive definition produce a valid term? (spoiler alert : yes). 
+Secondly, if the fixpoint does exist, can we write a computer program to actually _compute it_? (spoiler alert : yes). 
+
+## Curry's Y Combinator
+
+_This section assumes some basic knowledge about the untyped lambda calculus_. 
+
+We define the (in)famous Y combinator as follows : 
+
+$$
+  Y = \lambda f. ((\lambda x. f (x x)) (\lambda x. f (x x)))
+$$
+
+The Y combinator is the most popular of a family _fixpoint combinators_. A combinator is a lambda term with no free variables. Observe that
+our definition indeed does not contain any free variables. The Y combinator has the property that $Y f = f (Y f)$ for any term $f$. 
+This means that the Y combinator takes any lambda abstraction and returns it's fixpoint. 
+
+Of course, we have not considered other important questions - is the fixpoint unique? If the fixpoint is not unique, then which fixpoint is returned by the 
+Y combinator? I'll leave all this for now. 
+
+Let us take an example : let's compute the fixpoint of the identity function. The term $\lambda y.y$ will represent the identity function. 
+
+$$
+  Y id \\ 
+  = Y \lambda y. y  \\
+  = \lambda f. ((\lambda x. f (x x)) (\lambda x. f (x x))) \lambda y.y \\
+  = ((\lambda x. (\lambda y. y (x x))) (\lambda x. (\lambda y. y (x x)))) \\
+  = ((\lambda x. (x x)) (\lambda x. (x x))) \\
+$$
+
+Observe that the last term is the classic example of a non-terminating infinite loop. 
+
+This makes sense, we only expected that the Y combinator will produce a well-formed term for any recursive definition; we cannot gurantee that 
+this well-formed term be terminating. 
+
+## Actually implementing the recursion in our language 
+
+One might argue that actually computing the fixpoint for a recursive function this way seems to be a bad idea. In this argument, they would be correct. 
+Actually computing fixpoints would be slow and inefficient. A better idea is to simply use the recursion present in the metalanguage. 
+
+Personally, I've gone for the worst of both worlds. This may be justified by the fact that I'm lazy. 
+
+I have taken the syntax of the fixpoint equation and the implementation in the metalanguage. The fixpoint combinator is literally defined as follows: 
+
+```scheme
+(cases proc-val proc
+      (meta-procedure (internal) (eopl:error 'fix "Cannot fix metalanguage procedures"))
+      (object-procedure (env params body)
+                        (object-procedure (extend-env 'self proc env)
+                                          (cdr params)
+                                          (call-exp (var-exp 'self)
+                                                    (cons (var-exp 'self)
+                                                          (map var-exp (cdr params))))))))
+```
+
+Yes, I just make a new function that implicitly uses the old environment trick. We simply add a new binding `'self` to our environment and call the original function 
+in this new environment. This simulates recursion perfectly. 
+
+# Conclusion
+
+I know very well that I'll have to implement proper fixpoint handling and proper recursion handling since algebraic datatypes require so. Nonetheless, this works 
+well enough for now and I can add a new `defrec` form as syntactic sugar that reduces to the `fix` form. 
+
+I have also been very informal and non-rigourous with the mathematics. I will be fixing both of these very soon. 
+
+One might argue that putting in so much mathematics and extra garbage in this design doc is unnecessary - but this fundamentally misunderstands the philosophy. 
+Since the design is motivated entirely by personal laziness, the design doc itself is essentially a gentrified and academic sounding shitpost. 
+
+# References
+
+- For understanding about the untyped lambda calculus, one may see "Type Theory and Formal Proof" or "Lectures on the Curry-Howard Isomorphism"
+- For understanding about general recursion and algebraic datatypes see Pierce's "Types and Programming Languages" 
+- For understanding the mathematics behind recursion see any book on domain theory or programming language semantics. 
