@@ -15,12 +15,12 @@ The implementation of recursion in LETREC is whack at worst and whack at best.
 Here's factorial, for example : 
 
 ```scheme
-((fix (lambda (self n)
-                (if (zero? n)
-                    1
-                    (* n (self self (- n 1)))))) 
-      5)
-; evaluates to 120 
+((fix (lambda (self)
+                (lambda (n)
+                  (if (zero? n)
+                      1
+                      (* n (self (- n 1))))))) 5)
+; reduces to 120 
 ```
 
 For starters, LETREC allows recursive definitions without names. Secondly, what on earth is this `fix` form? 
@@ -255,25 +255,29 @@ this well-formed term be terminating.
 One might argue that actually computing the fixpoint for a recursive function this way seems to be a bad idea. In this argument, they would be correct. 
 Actually computing fixpoints would be slow and inefficient. A better idea is to simply use the recursion present in the metalanguage. 
 
-Personally, I've gone for the worst of both worlds. This may be justified by the fact that I'm lazy. 
+I have taken the _call-by-value_ flavour of the Y-combinator. Scheme has call-by-value semantics and the  
+object language has inherited these semantics. 
 
-I have taken the syntax of the fixpoint equation and the implementation in the metalanguage. The fixpoint combinator is literally defined as follows: 
+The call-by-value Y-combinator is defined as follows : 
 
+$$
+  Y = \lambda f. ((\lambda x. f (\lambda y. (x x) y)) (\lambda x. f (\lambda y. (x x) y)))
+$$
+
+In the interpreter this is defined as a primitive by evaluating a simple parse tree in the empty environment : 
 ```scheme
-(cases proc-val proc
-      (meta-procedure (internal) 
-       (eopl:error 'fix "Cannot fix metalanguage procedures"))
-      (object-procedure 
-       (env params body)                 
-       (object-procedure (extend-env 'self proc env)
-                         (cdr params)
-                         (call-exp (var-exp 'self)
-                                   (cons (var-exp 'self)
-                                   (map var-exp (cdr params))))))))
+(define y-combinator
+    (value-of (parse-tree '(lambda (f)
+                             ((lambda (x)
+                                (f (lambda (y)
+                                     ((x x) y))))
+                              (lambda (x)
+                                (f (lambda (y)
+                                     ((x x) y)))))))
+              (empty-env)))
 ```
 
-Yes, I just make a new function that implicitly uses the old environment trick. We simply add a new binding `'self` to our environment and call the original function 
-in this new environment. This simulates recursion perfectly. 
+This means that fixpoints of recursive functions is computed with the Y combinator. 
 
 # Conclusion
 
