@@ -1,7 +1,7 @@
 #lang eopl
 (require "procedural-environment.scm")
 (require "letrec-parser.scm")
-(require "syntax-tree.scm")
+(require "sugared-syntax-tree.scm")
 ; Utility procedures to manipulate environments
 ; These can be rewritten as left folds and that would be more elegant
 ; but I'm lazy :P
@@ -182,16 +182,21 @@
     (lift-binary comp int-val-unwrapper int-val-unwrapper bool-val-wrapper))
   ; ------------ FIXPOINT COMBINATOR -----------------
   ; The fixpoint combinator is used to define general recursion
-  ; for more info see RECURSION.md at the top of the repo tree
-  (define (fixpoint-combinator proc)
-    (cases proc-val proc
-      (meta-procedure (internal) (eopl:error 'fix "Cannot fix metalanguage procedures"))
-      (object-procedure (env params body)
-                        (object-procedure (extend-env 'self proc env)
-                                          (cdr params)
-                                          (call-exp (var-exp 'self)
-                                                    (cons (var-exp 'self)
-                                                          (map var-exp (cdr params))))))))
+  ; for more info see RECURSION.pdf in the docs section
+  ; This in particular is the "call-by-value" flavour of the
+  ; Y combinator.
+  ; Any call-by-value fixpoint combinator can be used
+  ; The choice of the Y combinator comes down to it's
+  ; popularity and the abundance of literature about it. 
+  (define y-combinator
+    (value-of (parse-tree '(lambda (f)
+                             ((lambda (x)
+                                (f (lambda (y)
+                                     ((x x) y))))
+                              (lambda (x)
+                                (f (lambda (y)
+                                     ((x x) y)))))))
+              (empty-env)))
   ; ------ PRIMITIVES -------------
   ; This list defines all the primitives in the initial environment
   ; type Primitive = Symbol * ExprType
@@ -202,7 +207,7 @@
     (list (cons '+ (make-foldr (lift-arithmetic +) (int-val 0)))
           (cons '* (make-foldr (lift-arithmetic *) (int-val 1)))
           (cons '- (make-foldr (lift-arithmetic -) (int-val 0)))
-          (cons 'fix (make-unary fixpoint-combinator))
+          (cons 'fix y-combinator)
           (cons 'cons (make-binary cons-sexp))
           (cons '= (make-binary (lift-comparator =)))
           (cons 'car (make-unary sexp-car))
@@ -302,7 +307,7 @@
     (eq? #t (bool-val-unwrapper bool)))
   ; The consumption of the abstract syntax tree begins here :D
   ; This is where magic happens ;)
-  (cases program exp
+  (cases sugared-tree exp
     (int-exp (val) (int-val val))
     (bool-exp (val) (bool-val val))
     (var-exp (var) (apply-env env var))

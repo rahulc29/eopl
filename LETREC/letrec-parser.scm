@@ -1,5 +1,5 @@
 #lang eopl
-(require "syntax-tree.scm")
+(require "sugared-syntax-tree.scm")
 (define (parse-tree tree)
   (define (parse-pair tree)
     (define (cond-form? head)

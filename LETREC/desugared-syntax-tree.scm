@@ -1,5 +1,5 @@
 #lang eopl
-(define-datatype program term?
+(define-datatype desugared-tree term?
   (int-exp
    (val integer?))
   (bool-exp
@@ -20,11 +20,6 @@
   (call-exp
    (name term?)
    (arguments (lambda (x) (or (pair? x) (null? x)))))
-  (letrec-exp
-   (name symbol?)
-   (args  (lambda (x) (or (pair? x) (null? x))))
-   (body term?)
-   (in term?))
   (let*-exp
    (var-list pair?)
    (expr term?))
@@ -36,10 +31,9 @@
 (provide bool-exp)
 (provide let-exp)
 (provide let*-exp)
-(provide letrec-exp)
 (provide if-exp)
 (provide nary-exp)
 (provide proc-exp)
 (provide call-exp)
 (provide var-exp)
-(provide program)
+(provide desugared-tree)
