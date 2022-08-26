@@ -181,6 +181,8 @@
   (define (lift-comparator comp)
     (lift-binary comp int-val-unwrapper int-val-unwrapper bool-val-wrapper))
   ; ------------ FIXPOINT COMBINATOR -----------------
+  ; The fixpoint combinator is used to define general recursion
+  ; for more info see RECURSION.md at the top of the repo tree
   (define (fixpoint-combinator proc)
     (cases proc-val proc
       (meta-procedure (internal) (eopl:error 'fix "Cannot fix metalanguage procedures"))
