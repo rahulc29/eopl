@@ -34,8 +34,8 @@
     (nary-exp (op opands) (desugared:nary-exp op (desugar opands)))
     (proc-exp (params body) (desugared:proc-exp params (desugar body)))
     (call-exp (rator rands) (desugared:call-exp (desugar rator) (map desugar rands)))
-    (let*-exp (vars body) (desugared:let*-exp vars (desugar body)))
-    (let-exp (vars body) (desugared:let-exp vars (desugar body)))
+    (let*-exp (vars body) (desugared:let*-exp (desugar-let-vars vars) (desugar body)))
+    (let-exp (vars body) (desugared:let-exp (desugar-let-vars vars) (desugar body)))
     ; TODO : Desugar letrec
     (letrec-exp (name args proc-body expr-body) '())))
     
