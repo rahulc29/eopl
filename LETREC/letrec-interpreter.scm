@@ -1,7 +1,8 @@
 #lang eopl
 (require "procedural-environment.scm")
 (require "letrec-parser.scm")
-(require "sugared-syntax-tree.scm")
+(require "desugared-syntax-tree.scm")
+(require "desugar.scm")
 ; Utility procedures to manipulate environments
 ; These can be rewritten as left folds and that would be more elegant
 ; but I'm lazy :P
@@ -189,13 +190,13 @@
   ; The choice of the Y combinator comes down to it's
   ; popularity and the abundance of literature about it. 
   (define y-combinator
-    (value-of (parse-tree '(lambda (f)
-                             ((lambda (x)
-                                (f (lambda (y)
-                                     ((x x) y))))
-                              (lambda (x)
-                                (f (lambda (y)
-                                     ((x x) y)))))))
+    (value-of (desugar (parse-tree '(lambda (f)
+                                      ((lambda (x)
+                                         (f (lambda (y)
+                                              ((x x) y))))
+                                       (lambda (x)
+                                         (f (lambda (y)
+                                              ((x x) y))))))))
               (empty-env)))
   ; ------ PRIMITIVES -------------
   ; This list defines all the primitives in the initial environment
@@ -307,7 +308,7 @@
     (eq? #t (bool-val-unwrapper bool)))
   ; The consumption of the abstract syntax tree begins here :D
   ; This is where magic happens ;)
-  (cases sugared-tree exp
+  (cases desugared-tree exp
     (int-exp (val) (int-val val))
     (bool-exp (val) (bool-val val))
     (var-exp (var) (apply-env env var))
@@ -318,12 +319,10 @@
                 (value-of else-clause env)))
     (proc-exp (param body) (value-of-proc param body env))
     (call-exp (rator rand) (value-of-call rator rand env))
-    (letrec-exp (name params recdef body)
-                (value-of-letrec name params recdef body env))
     (let*-exp (varlist body)
               (value-of body (extend-env-varlist-let* varlist env)))
     (let-exp (varlist body)
              (value-of body (extend-env-varlist-let varlist env)))))
 ; To run a program is to evaluate it in the initial environment
 (define (run program)
-  (value-of (parse-tree program) (init-env)))
+  (value-of (desugar (parse-tree program)) (init-env)))

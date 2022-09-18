@@ -1,6 +1,6 @@
 #lang eopl
-(require "sugared-syntax-tree.scm")
-(require (prefix-in desugared: "desugared-syntax-tree.scm"))
+(require (prefix-in sugared: "sugared-syntax-tree.scm"))
+(require "desugared-syntax-tree.scm")
 ; The desugar procedure takes a syntax tree
 ; and returns a new syntax tree in which
 ; everything has been desugared
@@ -20,22 +20,31 @@
 ; This _might_ breakdown when we introduce types
 ; but ok.
 ; TODO : Implement desugaring and desugar datatypes.
+(define (pass-let-vars vars pass)
+  (define (pass-var var)
+    (pass (list-ref var 1)))
+  (map pass-var vars))
+(define (desugar-letrec name args proc-body expr-body)
+  (define (transform-proc-body proc-body)
+    (call-exp (var-exp 'fix)
+              (list (proc-exp (list name)
+                        (proc-exp args (desugar proc-body))))))
+  (let-exp (list (list name (transform-proc-body proc-body))) (desugar expr-body)))
 (define (desugar syntax)
   (define (desugar-let-vars vars)
     (define (desugar-var var)
       (desugar (list-ref var 1)))
     (map desugar-var vars))
-  (cases sugared-tree syntax
-    (int-exp (val) (desugared:int-exp val))
-    (bool-exp (val) (desugared:bool-exp val))
-    (var-exp (val) (desugared:var-exp val))
-    (if-exp (pred then-clause else-clause)
-            (desugared:if-exp (desugar pred) (desugar then-clause) (desugar else-clause)))
-    (nary-exp (op opands) (desugared:nary-exp op (desugar opands)))
-    (proc-exp (params body) (desugared:proc-exp params (desugar body)))
-    (call-exp (rator rands) (desugared:call-exp (desugar rator) (map desugar rands)))
-    (let*-exp (vars body) (desugared:let*-exp (desugar-let-vars vars) (desugar body)))
-    (let-exp (vars body) (desugared:let-exp (desugar-let-vars vars) (desugar body)))
-    ; TODO : Desugar letrec
-    (letrec-exp (name args proc-body expr-body) '())))
-    
+  (cases sugared:sugared-tree syntax
+    (sugared:int-exp (val) (int-exp val))
+    (sugared:bool-exp (val) (bool-exp val))
+    (sugared:var-exp (val) (var-exp val))
+    (sugared:if-exp (pred then-clause else-clause)
+                    (if-exp (desugar pred) (desugar then-clause) (desugar else-clause)))
+    (sugared:nary-exp (op opands) (nary-exp op (desugar opands)))
+    (sugared:proc-exp (params body) (proc-exp params (desugar body)))
+    (sugared:call-exp (rator rands) (call-exp (desugar rator) (map desugar rands)))
+    (sugared:let*-exp (vars body) (let*-exp (desugar-let-vars vars) (desugar body)))
+    (sugared:let-exp (vars body) (let-exp (desugar-let-vars vars) (desugar body)))
+    (sugared:letrec-exp (name args proc-body expr-body) (desugar-letrec name args proc-body expr-body))))
+ (provide desugar)
