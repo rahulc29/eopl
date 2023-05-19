@@ -6,6 +6,10 @@ EOPL is essentially SICP on steroids but slightly differs in the topics covered 
 
 All the languages are in increasing order of complexity. 
 
+## Is it any good?
+
+[Yes](https://news.ycombinator.com/item?id=3067434)
+
 ## Running the interpreters
 
 Every language is implemented as a parser, possibly a desugaring layer, and an actual interpreter. The most sophisticated interpreter yet is the one for 
